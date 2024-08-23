@@ -114,7 +114,6 @@ def write_rules(model_list, output):
             rules_len = rules_len + 1
 
 output = open(output_file, "w")
-output.write("<!-- VMR created by create-ivao-vmr https://github.com/andrewward2001/create-ivao-vmr --> \n")
 output.write("<?xml version=\"1.0\" encoding=\"utf-8\"?> \n")
 output.write("<ModelMatchRuleSet> \n")
 write_rules(create_model_list(), output)
