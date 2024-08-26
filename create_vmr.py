@@ -6,11 +6,13 @@
 import configparser
 import getopt
 import os
+from pathlib import Path
 import sys
 from collections import defaultdict
 
 verbose = False
 models_directory = "./SimObjects/Airplanes"
+output_directory = Path.home() / "Documents" / "vPilot Files"
 output_file = "ivaomtl.vmr"
 lib = "ivao"
 # excluded_types = ["A4", "B1", "B2", "BE12", "BE35", "BE36", "BE40", "BE60", "C152", "C172", "C207"]
@@ -22,8 +24,8 @@ airlines_len = 0
 rules_len = 0
 
 argsList = sys.argv[1:]
-options = "d:o:vl:"
-long_options = ['directory=', 'output=', 'verbose', 'library']
+options = "d:o:vl:p:"
+long_options = ['directory=', 'output=', 'verbose', 'library=', 'output-directory=']
 
 try:
     arguments, values = getopt.getopt(argsList, options, long_options)
@@ -43,10 +45,12 @@ try:
                 exit()
         elif currentArgument in ("-o", "--output"):
             output_file = currentValue
-            print("Output to " + currentValue)
         elif currentArgument in ("-v", "--verbose"):
             verbose = True
-        
+        elif currentArgument in ("-p", "--output-directory"):
+            output_directory = Path(currentValue)
+    
+    print("Output to: " + Path(output_directory / output_file).as_posix())
 except getopt.error as err:
     print(err)
 
@@ -169,7 +173,7 @@ def write_rules(model_list, output):
             rules_len = rules_len + 1
 
 print("Building VMR for library: " + lib)
-output = open(output_file, "w")
+output = open(output_directory / output_file, "w")
 output.write("<?xml version=\"1.0\" encoding=\"utf-8\"?> \n")
 output.write("<ModelMatchRuleSet> \n")
 write_rules(create_model_list(), output)
