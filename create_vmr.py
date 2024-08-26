@@ -87,15 +87,15 @@ def determine_aircraft_type(config, section):
     global lib
     if lib == "aig":
         for mSection in config.sections():
-            # try:
+            try:
                 if "general" in mSection:
                     return config["general"]["icao_type_designator"][1:-1]
                 elif "General" in mSection:
                     return config["General"]["icao_type_designator"][1:-1]
                 elif "GENERAL" in mSection:
                     return config["GENERAL"]["icao_type_designator"][1:-1]
-            # except:
-            #     return ""
+            except:
+                return ""
         return ""
     else:
         return config[section]["ui_type"][1:5]
@@ -126,10 +126,23 @@ def create_model_list():
             if "fltsim" in section:
                 global texture_len
                 texture_len = texture_len + 1
+                acf_type = determine_aircraft_type(config, section)
+
+                # TypeCode cannot be blank.
+                if acf_type == "":
+                    print(acf_type)
+                    print(file_to_read + " was malformed, skipping.")
+                    errored_files.append(file_to_read)
+                    continue
+
+                texture_title = config[section]["title"]
+                if "\"" in texture_title: texture_title = texture_title[1:-1].encode('utf-8')
+                global lib
+                if lib == "ivao": texture_title = texture_title.decode('utf-8')
                 try:
-                    model_list[determine_callsign_prefix(config[section])][determine_aircraft_type(config, section)].append(config[section]["title"][1:-1])
+                    model_list[determine_callsign_prefix(config[section])][acf_type].append(texture_title)
                 except:
-                    model_list[determine_callsign_prefix(config[section])][determine_aircraft_type(config, section)] = [config[section]["title"][1:-1]]
+                    model_list[determine_callsign_prefix(config[section])][acf_type] = [texture_title]
 
     return model_list
 
@@ -143,6 +156,7 @@ def write_rules(model_list, output):
         for type in model_list[airline]:
             variant_string = ""
             for variant in model_list[airline][type]:
+                if "&" in variant: continue
                 variant_string += variant
                 if variant != model_list[airline][type][-1]:
                     variant_string += "//"
