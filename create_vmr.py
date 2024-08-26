@@ -12,6 +12,7 @@ from collections import defaultdict
 verbose = False
 models_directory = "./SimObjects/Airplanes"
 output_file = "ivaomtl.vmr"
+lib = "ivao"
 # excluded_types = ["A4", "B1", "B2", "BE12", "BE35", "BE36", "BE40", "BE60", "C152", "C172", "C207"]
 
 errored_files = []
@@ -21,8 +22,8 @@ airlines_len = 0
 rules_len = 0
 
 argsList = sys.argv[1:]
-options = "d:o:v"
-long_options = ['directory=', 'output=', 'verbose']
+options = "d:o:vl:"
+long_options = ['directory=', 'output=', 'verbose', 'library']
 
 try:
     arguments, values = getopt.getopt(argsList, options, long_options)
@@ -31,11 +32,21 @@ try:
         if currentArgument in ("-d", "--directory"):
             models_directory = currentValue
             print("Reading from " + currentValue)
+        elif currentArgument in ("-l", "--library"):
+            if currentValue == "ivao":
+                lib = "ivao"
+            elif currentValue == "aig":
+                lib = "aig"
+                output_file = "aig.vmr"
+            else:
+                print("Error! Library can only be either \"ivao\" or \"aig\"")
+                exit()
         elif currentArgument in ("-o", "--output"):
             output_file = currentValue
             print("Output to " + currentValue)
         elif currentArgument in ("-v", "--verbose"):
             verbose = True
+        
 except getopt.error as err:
     print(err)
 
@@ -59,10 +70,36 @@ def build_rule(callsign, type, modeltitle):
 
 # Ensures that callsign entries are 3-letter airline identifiers. Otherwise, leave this blank.
 def determine_callsign_prefix(entry):
-    if "\"" not in entry:
-        return entry
-    else:
+    global lib
+    if lib == "aig":
+        try:
+            return entry["icao_airline"]
+        except:
+            return ""
+    if lib == "ivao":
+        if "\"" not in entry["texture"][1:4]:
+            return entry["texture"][1:4]
+        else:
+            return ""
+        
+# Depending on if we are creating a VMR from the IVAO MTL or the AIG models, the aircraft type is located at a different part of the aircraft.cfg.
+def determine_aircraft_type(config, section):
+    global lib
+    if lib == "aig":
+        for mSection in config.sections():
+            # try:
+                if "general" in mSection:
+                    return config["general"]["icao_type_designator"][1:-1]
+                elif "General" in mSection:
+                    return config["General"]["icao_type_designator"][1:-1]
+                elif "GENERAL" in mSection:
+                    return config["GENERAL"]["icao_type_designator"][1:-1]
+            # except:
+            #     return ""
         return ""
+    else:
+        return config[section]["ui_type"][1:5]
+    
 
 # Reads all the aircraft.cfg files from the directory models_directory.
 # Assemble all the aircraft.cfg entries into a dictionary with format: model_list[CallsignPrefix][TypeCode][ModelName]
@@ -81,14 +118,18 @@ def create_model_list():
             print(err)
             errored_files.append(file_to_read)
             pass
+        except UnicodeDecodeError as err:
+            # print (err)
+            errored_files.append(file_to_read)
+            pass
         for section in config.sections():
             if "fltsim" in section:
                 global texture_len
                 texture_len = texture_len + 1
                 try:
-                    model_list[determine_callsign_prefix(config[section]["texture"][1:4])][config[section]["ui_type"][1:5]].append(config[section]["title"][1:-1])
+                    model_list[determine_callsign_prefix(config[section])][determine_aircraft_type(config, section)].append(config[section]["title"][1:-1])
                 except:
-                    model_list[determine_callsign_prefix(config[section]["texture"][1:4])][config[section]["ui_type"][1:5]] = [config[section]["title"][1:-1]]
+                    model_list[determine_callsign_prefix(config[section])][determine_aircraft_type(config, section)] = [config[section]["title"][1:-1]]
 
     return model_list
 
@@ -113,6 +154,7 @@ def write_rules(model_list, output):
             global rules_len
             rules_len = rules_len + 1
 
+print("Building VMR for library: " + lib)
 output = open(output_file, "w")
 output.write("<?xml version=\"1.0\" encoding=\"utf-8\"?> \n")
 output.write("<ModelMatchRuleSet> \n")
