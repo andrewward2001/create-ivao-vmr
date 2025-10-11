@@ -50,6 +50,10 @@ try:
             verbose = True
         elif currentArgument in ("-p", "--output-directory"):
             output_directory = Path(currentValue)
+
+    if not (output_directory and Path(output_directory).exists()):
+        print(f'Output directory "{output_directory}" does not exist. Using current directory instead.')
+        output_directory = Path.cwd()
     
     print("Output to: " + Path(output_directory / output_file).as_posix())
 except getopt.error as err:
