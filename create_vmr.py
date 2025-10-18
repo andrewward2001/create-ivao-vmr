@@ -8,6 +8,7 @@ import getopt
 import os
 from pathlib import Path
 import sys
+import re
 from collections import defaultdict
 
 verbose = False
@@ -49,6 +50,10 @@ try:
             verbose = True
         elif currentArgument in ("-p", "--output-directory"):
             output_directory = Path(currentValue)
+
+    if not (output_directory and Path(output_directory).exists()):
+        print(f'Output directory "{output_directory}" does not exist. Using current directory instead.')
+        output_directory = Path.cwd()
     
     print("Output to: " + Path(output_directory / output_file).as_posix())
 except getopt.error as err:
@@ -117,7 +122,19 @@ def create_model_list():
         config = configparser.ConfigParser()
         try:
             if verbose: print("Reading " + file_to_read + "...")
-            config.read(file_to_read)
+            if not os.path.exists(file_to_read):
+                if verbose: print("Skipping, aircraft.cfg does not exist.")
+                continue
+
+            with open(file_to_read, "r") as f:
+                content = f.read()
+
+            # Fix missing opening bracket: VERSION] -> [VERSION]
+            content = re.sub(r'^(\s*)([A-Za-z0-9_]+)\]', r'\1[\2]', content, flags=re.MULTILINE)
+
+            # Fix missing closing bracket: [VERSION -> [VERSION]
+            content = re.sub(r'^\s*\[([A-Za-z0-9_]+)(?!\])', r'[\1]', content, flags=re.MULTILINE)
+            config.read_string(content)
         except configparser.ParsingError as err:
             print(err)
             errored_files.append(file_to_read)
@@ -190,5 +207,4 @@ if(len(errored_files) != 0):
     print("\n\nSome files had errors and were not included in the VMR:")
     for file in errored_files:
         print(file)
-    print("Usually this is because of an error where the file says [VERSION]. See GitHub for more details.")
     print("The VMR was still created but aircraft of this type will not show up unless the problem is fixed and the script is run again.")
